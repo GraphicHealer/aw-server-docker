@@ -126,7 +126,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.aw_release.outputs.version }}
-          name: ActivityWatch v${{ steps.aw_release.outputs.version }}
+          name: ActivityWatch Server Docker v${{ steps.aw_release.outputs.version }}
           body: |
             Automated build of ActivityWatch server Docker image for version **v${{ steps.aw_release.outputs.version }}**.
 
