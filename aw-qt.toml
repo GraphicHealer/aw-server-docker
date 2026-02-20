@@ -1,5 +1,6 @@
-# ~/.config/activitywatch/aw-qt/aw-qt.toml
-
 [aw-qt]
-# do not start the aw-server, its running in Docker
-autostart_modules = ["aw-watcher-afk", "aw-watcher-window", "aw-watcher-input"]
+# Remove aw-server from autostart since it's running in Docker, and uncomment the line below.
+autostart_modules = ["aw-watcher-afk", "aw-watcher-window"]
+
+[aw-qt-testing]
+#autostart_modules = ["aw-server", "aw-watcher-afk", "aw-watcher-window"]

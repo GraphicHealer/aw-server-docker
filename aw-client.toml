@@ -1,0 +1,14 @@
+[server]
+# Uncomment and modify these lines to connect to a separate server.
+hostname = "your-server-ip"
+port = "5600"
+
+[client]
+#commit_interval = 10
+
+[server-testing]
+#hostname = "127.0.0.1"
+#port = "5666"
+
+[client-testing]
+#commit_interval = 5
