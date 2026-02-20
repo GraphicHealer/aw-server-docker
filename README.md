@@ -87,3 +87,8 @@ To build the image locally for a specific version:
 ```bash
 docker build --build-arg AW_VERSION=0.13.2 -t aw-server .
 ```
+
+
+## Attribution
+Based on work by sentisso.
+https://github.com/sentisso/docker-activitywatch
