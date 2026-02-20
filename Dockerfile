@@ -28,7 +28,9 @@ RUN apt-get purge -y ca-certificates unzip wget \
   && rm -rf /var/lib/apt/lists/*
 
 # Single /config mount for all persistent data
-RUN mkdir -p /config/data /config/config \
+# aw-server-rust expects to create these dirs itself on first run,
+# so we only create /config and symlink the parent paths
+RUN mkdir -p /config \
   && mkdir -p /root/.local/share /root/.config \
   && ln -s /config/data /root/.local/share/activitywatch \
   && ln -s /config/config /root/.config/activitywatch
