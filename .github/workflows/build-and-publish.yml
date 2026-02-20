@@ -1,0 +1,157 @@
+name: Build and Publish Docker Image
+
+on:
+  schedule:
+    # Check for new releases daily at 06:00 UTC
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: "Force a rebuild even if the version already exists"
+        required: false
+        default: "false"
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Get latest ActivityWatch release version
+        id: aw_release
+        run: |
+          LATEST_TAG=$(curl -s https://api.github.com/repos/ActivityWatch/activitywatch/releases/latest | jq -r '.tag_name')
+          if [ "$LATEST_TAG" = "null" ] || [ -z "$LATEST_TAG" ]; then
+            echo "Failed to fetch latest release tag"
+            exit 1
+          fi
+          # Strip the leading 'v' for the version number
+          AW_VERSION="${LATEST_TAG#v}"
+          echo "tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$AW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Latest ActivityWatch release: $LATEST_TAG ($AW_VERSION)"
+
+      - name: Check if image tag already exists in GHCR
+        id: check_existing
+        run: |
+          IMAGE_LOWER=$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
+          VERSION="${{ steps.aw_release.outputs.version }}"
+          # Get a GHCR token for the public image
+          TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:${IMAGE_LOWER}:pull" | jq -r '.token // empty')
+          if [ -n "$TOKEN" ]; then
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+              "https://ghcr.io/v2/${IMAGE_LOWER}/manifests/${VERSION}")
+          else
+            STATUS="404"
+          fi
+          if [ "$STATUS" = "200" ] && [ "${{ inputs.force_build }}" != "true" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Image tag ${VERSION} already exists, skipping build."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Image tag ${VERSION} not found or force build requested, proceeding."
+          fi
+
+      - name: Checkout repository
+        if: steps.check_existing.outputs.exists == 'false'
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: steps.check_existing.outputs.exists == 'false'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: steps.check_existing.outputs.exists == 'false'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        if: steps.check_existing.outputs.exists == 'false'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.aw_release.outputs.version }}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        if: steps.check_existing.outputs.exists == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            AW_VERSION=${{ steps.aw_release.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update Unraid CA template with new version
+        if: steps.check_existing.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.aw_release.outputs.version }}"
+          TEMPLATE="unraid-templates/aw-server-docker.xml"
+          # Update the Repository tag to use the specific version
+          sed -i "s|ghcr.io/graphichealer/aw-server-docker:[^<]*|ghcr.io/graphichealer/aw-server-docker:${VERSION}|g" "$TEMPLATE"
+
+      - name: Commit updated Unraid template
+        if: steps.check_existing.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add unraid-templates/aw-server-docker.xml
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: update Unraid template to ActivityWatch v${{ steps.aw_release.outputs.version }}"
+            git push
+          fi
+
+      - name: Create GitHub Release
+        if: steps.check_existing.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.aw_release.outputs.version }}
+          name: ActivityWatch v${{ steps.aw_release.outputs.version }}
+          body: |
+            Automated build of ActivityWatch server Docker image for version **v${{ steps.aw_release.outputs.version }}**.
+
+            **Docker image:** `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.aw_release.outputs.version }}`
+
+            **Pull:**
+            ```
+            docker pull ghcr.io/graphichealer/aw-server-docker:${{ steps.aw_release.outputs.version }}
+            ```
+
+            [ActivityWatch Release Notes](https://github.com/ActivityWatch/activitywatch/releases/tag/${{ steps.aw_release.outputs.tag }})
+          generate_release_notes: false
+
+      - name: Summary
+        if: steps.check_existing.outputs.exists == 'false'
+        run: |
+          echo "### Docker image published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **ActivityWatch version:** ${{ steps.aw_release.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.aw_release.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Tags:** \`${{ steps.aw_release.outputs.version }}\`, \`latest\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary (skipped)
+        if: steps.check_existing.outputs.exists == 'true'
+        run: |
+          echo "### Build skipped" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image for ActivityWatch **${{ steps.aw_release.outputs.tag }}** already exists." >> "$GITHUB_STEP_SUMMARY"

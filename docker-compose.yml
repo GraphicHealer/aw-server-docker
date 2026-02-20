@@ -1,0 +1,9 @@
+services:
+  aw-server:
+    image: ghcr.io/graphichealer/aw-server-docker:latest
+    container_name: activitywatch
+    ports:
+      - "5600:5600/tcp"
+    restart: unless-stopped
+    volumes:
+      - ./appdata/activitywatch:/config

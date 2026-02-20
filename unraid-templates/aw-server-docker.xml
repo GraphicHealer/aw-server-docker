@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>aw-server-docker</Name>
+  <Repository>ghcr.io/graphichealer/aw-server-docker:latest</Repository>
+  <Registry>https://github.com/GraphicHealer/aw-server-docker/pkgs/container/aw-server-docker</Registry>
+  <Network>bridge</Network>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/GraphicHealer/aw-server-docker/issues</Support>
+  <Project>https://activitywatch.net/</Project>
+  <ReadMe>https://github.com/GraphicHealer/aw-server-docker/blob/main/README.md</ReadMe>
+  <Overview>ActivityWatch is a free and open-source automated time tracker that helps you track how you spend your time on your devices. This container runs aw-server-rust, the high-performance Rust-based server component, which includes the web UI dashboard.&#xD;
+&#xD;
+Access the web interface at http://[IP]:[PORT:5600] to view your tracked activity, timelines, and categories.</Overview>
+  <Category>Tools: Productivity:</Category>
+  <WebUI>http://[IP]:[PORT:5600]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/GraphicHealer/aw-server-docker/main/unraid-templates/aw-server-docker.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/ActivityWatch/media/master/logo/logo.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <Shell>bash</Shell>
+  <ExtraSearchTerms>activitywatch time tracker productivity aw-server-rust</ExtraSearchTerms>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>5600</HostPort>
+        <ContainerPort>5600</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/activitywatch</HostDir>
+      <ContainerDir>/config</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment/>
+  <Labels/>
+  <Config Name="WebUI Port" Target="5600" Default="5600" Mode="tcp" Description="Port for the ActivityWatch web interface." Type="Port" Display="always" Required="true" Mask="false">5600</Config>
+  <Config Name="Appdata" Target="/config" Default="/mnt/user/appdata/activitywatch" Mode="rw" Description="Persistent storage for ActivityWatch configuration and database files." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/activitywatch</Config>
+</Container>
