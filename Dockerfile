@@ -27,13 +27,10 @@ RUN apt-get purge -y ca-certificates unzip wget \
   && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/*
 
-# Single /config mount for all persistent data
-# aw-server-rust expects to create these dirs itself on first run,
-# so we only create /config and symlink the parent paths
-RUN mkdir -p /config \
-  && mkdir -p /root/.local/share /root/.config \
-  && ln -s /config/data /root/.local/share/activitywatch \
-  && ln -s /config/config /root/.config/activitywatch
+# Use /config as the single mount for all persistent data via XDG env vars
+# aw-server-rust uses the xdg crate, so it respects these variables
+ENV XDG_CONFIG_HOME=/config
+ENV XDG_DATA_HOME=/config
 
 # Expose volume and port
 VOLUME /config
