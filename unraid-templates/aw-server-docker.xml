@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>aw-server-docker</Name>
-  <Repository>ghcr.io/graphichealer/aw-server-docker:latest</Repository>
+  <Repository>ghcr.io/graphichealer/aw-server-docker:0.13.2</Repository>
   <Registry>https://github.com/GraphicHealer/aw-server-docker/pkgs/container/aw-server-docker</Registry>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
